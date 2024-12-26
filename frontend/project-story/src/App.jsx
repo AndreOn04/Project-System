@@ -1,0 +1,24 @@
+/* eslint-disable no-unused-vars */
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+/* eslint-disable no-unused-vars */
+import React from 'react'
+
+import Home from './pages/Home/Home';
+import Login from './pages/Auth/Login';
+import Signup from './pages/Auth/Signup';
+
+const App = () => {
+  return (
+    <div>
+      <Router>
+        <Routes>
+          <Route path="/dashboard" exact element={<Home />} />
+          <Route path="/login" exact element={<Login />} />
+          <Route path="/signup" exact element={<Signup />} />
+        </Routes>
+      </Router>
+    </div>
+  )
+}
+
+export default App
