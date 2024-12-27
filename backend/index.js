@@ -57,7 +57,7 @@ app.post("/create-account", async (req, res) => {
           process.env.ACCESS_TOKEN_SECRET,
           {
 
-            expiresIn: "72h", 
+            expiresIn: "72h",
             
           }
 
@@ -85,7 +85,7 @@ app.post("/login", async (req, res) => {
     const user = await User.findOne({ email });
 
     if ( !user ) {
-        return res.status(404).json( { message: "Usuário não encontrado..." } );
+        return res.status(404).json( { message: " Não foi possível localizar o usuário... " } );
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -128,6 +128,73 @@ app.get("/get-user", authenticateToken, async ( req, res ) => {
         message: "",
      });
 } );
+
+// Criando rotas para upload das imagens.
+app.post("/image-upload",  upload.single("image"), async ( req, res ) => {
+
+    try {
+
+        if ( !req.file ) {
+
+            return res 
+                .status(400)
+                .json({ error: true, message: " Nenhuma imagem foi enviada. ",})
+
+        }
+
+        const imageUrl = ` http://localhost:8000/uploads/${req.file.filename} `;
+
+        res.status(201).json({ imageUrl });
+
+    } catch (error) {
+
+       res.status(500).json({ error: true, message: error.message });
+
+    }
+
+})
+
+// Deletar imagem
+app.delete("/delete-image", async ( req, res ) => {
+
+    const { imageUrl } = req.query;
+
+    if ( !imageUrl ) {
+        return res.status(400).json({
+
+            error: true,
+            message: " O parâmetro imageUrl é obrigatório "
+
+         });
+    }
+
+    try {
+        // Extraindo o nome do arquivo da URL da imagem
+        const filename = path.basename(imageUrl);
+
+        // Definindo o caminho do arquivo
+        const filePath = path.join(__dirname, 'uploads', filename );
+
+        // Verificando se há arquivos existentes...
+
+        if ( fs.existsSync(filePath) ) {
+            // Deletando o arquivo da pasta uploads
+            fs.unlinkSync(filePath);
+            res.status(200).json({ message: " Imagem deletada com sucesso! " });
+        } else {
+            res.status(200).json({ error: true, message: " Image não encontrada " });
+        }
+
+    } catch ( error ) {
+        res.status(500).json({ error: true, message: error.message });
+    }
+
+});
+
+
+// Arquivos estáticos do servidor do diretório uploads e assets
+app.use("/uploads", express.static(path.join(__dirname, "uploads")) );
+app.use("/assets", express.static(path.join(__dirname, "assets")) );
  
 // Adicionar Histórico de Viagem
 app.post("/add-travel-story", authenticateToken, async (req, res) =>  {
@@ -213,31 +280,114 @@ app.get("/get-all-stories", authenticateToken, async (req, res) => {
         });
 
     }
-}); 
+});
 
-// Criando rotas para upload das imagens.
-app.post("/image-upload",  upload.single("image"), async ( req, res ) => {
+// Editar
+app.put("/get-story/:id", authenticateToken, async (req, res) =>{
 
-    try {
+    const { id } = req.params;
+    const { title, story, visitedLocation, imageUrl, visitedDate } = req.body;
+    const { userId } = req.user;
 
-        if ( !req.file ) {
+    // Validar campos obrigatórios
+    if ( !title || !story || !visitedLocation || !imageUrl || !visitedDate )  {
 
-            return res 
-                .status(400)
-                .json({ error: true, message: " Nenhuma imagem foi enviada. ",})
+        return res.status(400).json({ 
 
-        }
+            error: true, 
+            message: " Todos os campos são obrigatórios... ",
 
-        const imageUrl = ` http://localhost:8000/uploads/${req.file.filename} `;
-
-        res.status(201).json({ imageUrl });
-
-    } catch (error) {
-
-       res.status(500).json({ error: true, message: error.message });
+         });
 
     }
+    
+    // Converter visitedDate para Date Object
+    const parsedVisitedDate = new Date(parseInt(visitedDate));
 
+    try {
+        // Obtento o histórico do ID
+        const travelStory = await TravelStory.findOne({ _id: id, userId: userId });
+
+        if ( !travelStory ) {
+            return res.status(400).json({ error: true, message: " Não foi possível encontrar o histórico... " });
+        }
+
+        const placeholderImgUrl = ` http://localhost:8000/assets/placeholder.png `;
+
+        travelStory.title = title;
+        travelStory.story = story;
+        travelStory.visitedLocation = visitedLocation;
+        travelStory.imageUrl = imageUrl || placeholderImgUrl;
+        travelStory.visitedDate = parsedVisitedDate;
+
+        await travelStory.save();
+        res.status(200).json({ story: travelStory, message: " Editado com sucesso... " });
+    } catch ( error ) {
+        res.status(500).json({ error: true, message: error.message });
+    }
+
+})
+
+// Deletar
+app.delete("/delete-story/:id", authenticateToken, async (req, res) =>{
+
+    const { id } = req.params;
+    const { userId } = req.user;
+
+
+    try {
+         // Obtento o histórico do ID
+         const travelStory = await TravelStory.findOne({ _id: id, userId: userId });
+
+         if ( !travelStory ) {
+             return res.status(400).json({ error: true, message: " Não foi possível encontrar o histórico... " });
+         }
+
+         // Deletar do Database (Banco de dados);
+         await travelStory.deleteOne({ _id: id, userId: userId });
+
+         // Extraindo a URL
+         const imageUrl = travelStory.imageUrl;
+         const filename = path.basename(imageUrl);
+
+         // Define the file path
+         const filePath = path.join(__dirname, 'uploads', filename );
+
+         // Deletando a imagem da pasta UPLOADS
+         fs.unlink(filePath, (err) => {
+            console.error(" Falha ao tentar deletar o arquivo... ", err);
+         });
+
+         res.status(200).json({ message: " Deletado com sucesso... " });
+
+    } catch ( error ) {
+        res.status(500).json({ error: true, message: error.message });
+    }
+})
+
+// Atualizar os favoritos
+app.put("/update-is-favourite/:id", authenticateToken, async (req, res) =>{
+    const { id } = req.params;
+    const { isFavourite } = req.body;
+    const { userId } = req.user;
+
+    try {
+        const travelStory = await TravelStory.findOne({ _id: id, userId: userId });
+
+        if ( !travelStory ) {
+            return res.status(404).json({ error: true, message: " Não encontramos... " });
+        }
+
+        travelStory.isFavourite = isFavourite;
+
+        await travelStory.save();
+        res.status(200).json({ story: travelStory, message: " Atualizado com sucesso... " });
+
+        
+
+    } catch ( error ) {
+        res.status(500).json({ error: true, message: error.message })
+    }
 })
 
 app.listen(8000);
