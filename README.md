@@ -1,5 +1,5 @@
 # Full Stack Travel Story
-> **MongoDB, ReactJS, NodeJS
+> **MongoDB, React, Node
 
 Este projeto é uma aplicação web Full Stack para criar, visualizar e compartilhar histórias de viagens. A aplicação foi desenvolvida utilizando (MongoDB, Express, React e Node.js), que permite uma experiência eficiente e escalável tanto no front-end quanto no back-end.
 
