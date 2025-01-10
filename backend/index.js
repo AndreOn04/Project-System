@@ -91,7 +91,7 @@ app.post("/login", async (req, res) => {
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if ( !isPasswordValid ) {
 
-        return res.status(400).json({ message: "Opps.. Credenciais Incorretas..." });
+        return res.status(400).json({ message: "Opss.. Email ou Senha está incorreto... " });
 
     }
 
@@ -384,10 +384,65 @@ app.put("/update-is-favourite/:id", authenticateToken, async (req, res) =>{
         res.status(200).json({ story: travelStory, message: " Atualizado com sucesso... " });
 
         
-
     } catch ( error ) {
-        res.status(500).json({ error: true, message: error.message })
+        res.status(500).json({ error: true, message: error.message });
     }
+})
+
+// Pesquisar por histórico de viagem
+app.get("/search", authenticateToken, async (req, res) =>{
+
+    const { query } = req.query;
+    const { userId } = req.user;
+
+    if ( !query ) {
+
+        return res.status(400).json({ error: true, message: " Por favor, informe o parâmetro query... " });
+
+    }
+
+    try {
+        const searchResults = await TravelStory.find({
+
+            userId: userId,
+            $or: [
+                { title: { $regex: query, $options: 'i' } },
+                { story: { $regex: query, $options: 'i' } },
+                { visitedLocation: { $regex: query, $options: 'i' } },
+            ],
+
+         }).sort({ isFavourite: -1 });
+
+         res.status(200).json({ stories: searchResults });
+    } catch ( error ) {
+        res.status(500).json({ error: true, message: error.message });
+    }
+
+})
+
+// Filtros
+app.get("/travel-stories/filter", authenticateToken, async (req, res) =>{
+
+    const { startDate, endDate } = req.query;
+    const { userId } = req.user;
+
+    try {
+
+        const start = new Date(parseInt(startDate));
+        const end = new Date(parseInt(endDate));
+
+        const filteredStories = await TravelStory.find({
+
+            userId: userId,
+            visitedDate: { $gte: start, $lte: end },
+
+         }).sort({ isFavourite: -1 });
+
+         res.status(200).json({ stories: filteredStories });
+    } catch ( error ) {
+        res.status(500).json({ error: true, message: error.message });
+    }
+
 })
 
 app.listen(8000);
