@@ -31,7 +31,7 @@ Este projeto é uma aplicação web Full Stack para criar, visualizar e comparti
 - React.js
 - Axios (para chamadas à API)
 - React Router (para navegação)
-- CSS (para estilização)
+- Tailwind
 
 ### **Back-End**
 - Node.js
